@@ -97,8 +97,8 @@ impl Grid {
     fn count_live_neighbors(&self, x: usize, y: usize) -> usize {
         let mut live_neighbors = 0;
 
-        for y_offset in -1..1 {
-            for x_offset in -1..1 {
+        for y_offset in -1..=1 {
+            for x_offset in -1..=1 {
                 if x_offset == 0 && y_offset == 0 {
                     continue;
                 }

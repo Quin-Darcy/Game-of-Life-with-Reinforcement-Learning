@@ -18,7 +18,7 @@ impl Agent {
         Agent { probabilities, epsilon }
     }
 
-    pub fn update(&mut self, grid: &Grid) {
+    pub fn update(&mut self, grid: &Grid, global_signal: f32) {
         // Update each cell's probability using the cumulative average of a weighted sum of its neighbors' ages
         let population_age = grid.population_age;
         for y in 0..grid.rows {
@@ -61,6 +61,15 @@ impl Agent {
 
                 let cell_health = weighted_sum / num_neighbors as f32;
                 self.probabilities[idx] = self.probabilities[idx] + (1.0 / population_age as f32) * (cell_health - self.probabilities[idx]);
+                self.probabilities[idx] += global_signal;
+                self.probabilities[idx] = self.probabilities[idx].max(0.00).min(1.0);
+
+                // Check if the probability is NaN
+                if self.probabilities[idx].is_nan() {
+                    //println!("cell_health: {:.5}", cell_health);
+                    self.probabilities[idx] = 0.5;
+                }
+
             }
         }
     }
