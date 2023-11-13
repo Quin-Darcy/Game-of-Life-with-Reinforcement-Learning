@@ -9,25 +9,26 @@ mod constants;
 
 use crate::grid::Grid;
 use crate::agent::Agent;
-use crate::constants::{WINDOW_WIDTH_MAX, WINDOW_HEIGHT_MAX, EPSILON, MAX_POPULATION_AGE_REPEAT};
+use crate::constants::{WINDOW_WIDTH_MAX, WINDOW_HEIGHT_MAX, EPSILON, MAX_POPULATION_REPEATS, MAX_POPULATION_AGE};
 
 
 struct Model {
     agent: Agent,
     grid: Grid,
-    epochs: usize,
+
+    // To track the number of times the population size has repeated
     last_population: usize,
-    population_repeat: usize,
-    population_percentage: f32,
-    last_population_percentage: f32,
+    population_repeats: usize,
 }
 
 fn model(app: &App) -> Model {
-    // Create the agent instance first
-    let agent = Agent::new(WINDOW_WIDTH_MAX, WINDOW_HEIGHT_MAX, EPSILON);
+    let num_cells = get_num_cells(WINDOW_WIDTH_MAX, WINDOW_HEIGHT_MAX);
+    let mut agent = Agent::new(EPSILON, num_cells);
 
-    // Then pass the reference of agent to Grid::new
-    let grid = Grid::new(WINDOW_WIDTH_MAX, WINDOW_HEIGHT_MAX, &agent);
+    // Initialize grid with new state from agent
+    let grid_state = agent.get_new_state();
+
+    let grid = Grid::new(WINDOW_WIDTH_MAX, WINDOW_HEIGHT_MAX, &grid_state);
 
     app.new_window()
         .size(WINDOW_WIDTH_MAX as u32, WINDOW_HEIGHT_MAX as u32)
@@ -37,9 +38,10 @@ fn model(app: &App) -> Model {
         .build()
         .unwrap();
 
-    Model { agent, grid, epochs: 0, last_population: 0, population_repeat: 0, population_percentage: 0.0, last_population_percentage: 0.0 }
+    Model { grid, agent, last_population: 0, population_repeats: 0 }
 }
 
+// TODO: Implement centralized reset function which can be called from window_event
 fn window_event(app: &App, model: &mut Model, event: WindowEvent) {
     // Trigger new grid if window is resized or if mouse is clicked
     match event {
@@ -48,60 +50,76 @@ fn window_event(app: &App, model: &mut Model, event: WindowEvent) {
             let w = min(new_rect.w() as usize, WINDOW_WIDTH_MAX as usize);
             let h = min(new_rect.h() as usize, WINDOW_HEIGHT_MAX as usize);
 
-            model.agent = Agent::new(w as f32, h as f32, EPSILON);
-            model.grid = Grid::new(w as f32, h as f32, &model.agent);
+            // Reset the agent
+            model.agent = Agent::new(EPSILON, get_num_cells(w as f32, h as f32));
 
+            // Reset the grid and initialize it to a new state from the agent
+            let grid_state = model.agent.get_new_state();
+
+            model.grid = Grid::new(w as f32, h as f32, &grid_state);
         }
         WindowEvent::MousePressed(_button) => {
             let new_rect = app.window_rect();
             let w = min(new_rect.w() as usize, WINDOW_WIDTH_MAX as usize);
             let h = min(new_rect.h() as usize, WINDOW_HEIGHT_MAX as usize);
 
-            model.agent = Agent::new(w as f32, h as f32, EPSILON);
-            model.grid = Grid::new(w as f32, h as f32, &model.agent);
+            // Reset the agent
+            model.agent = Agent::new(EPSILON, get_num_cells(w as f32, h as f32));
+
+            // Reset the grid and initialize it to a new state from the agent
+            let grid_state = model.agent.get_new_state();
+
+            model.grid = Grid::new(w as f32, h as f32, &grid_state);
         }
         _ => {}
     }
 }
 
 fn update(app: &App, model: &mut Model, _update: Update) {
-    let curent_percentage = model.grid.population as f32 / model.grid.cells.len() as f32;
-    if model.grid.population_age == 0 {
-        model.population_percentage = curent_percentage;
+    // Check if the population size has repeated
+    if model.grid.population == model.last_population {
+        model.population_repeats += 1;
     } else {
-        model.population_percentage = model.population_percentage + (1.0 / model.grid.population_age as f32) * (curent_percentage - model.population_percentage);
+        model.last_population = model.grid.population;
+        model.population_repeats = 0;
     }
 
-    if model.grid.population == 0 || model.population_repeat >= MAX_POPULATION_AGE_REPEAT {
+    // Print the size of the Agent's state space
+    println!("State space size: {}", model.agent.state_space.len());
+
+    // Trigger new grid if population is zero or if the population size continues to repeat or if the population age is too high
+    if model.grid.population == 0 || model.population_repeats >= MAX_POPULATION_REPEATS || model.grid.population_age >= MAX_POPULATION_AGE{
         let new_rect = app.window_rect();
         let w = min(new_rect.w() as usize, WINDOW_WIDTH_MAX as usize);
         let h = min(new_rect.h() as usize, WINDOW_HEIGHT_MAX as usize);
 
-        let global_signal: f32;
-        if model.population_percentage > model.last_population_percentage {
-            global_signal = model.population_percentage;
-        } else {
-            global_signal = -model.population_percentage;
-        }
+        // Reset population repeat counter
+        model.population_repeats = 0;
 
-        model.population_repeat = 0;
-        model.epochs += 1;
-        model.population_percentage = 0.0;
-        model.agent.update(&model.grid, global_signal/10.0);
-        model.grid = Grid::new(w as f32, h as f32, &model.agent);
+        // Set the final population size of the grid
+        model.grid.final_population = model.grid.population;
+
+        // Update agent
+        model.agent.update(&model.grid);
+
+        // Decide if the agent should explore or exploit
+        let explore = random_f32() < model.agent.epsilon;
+
+        // If the agent is exploring, get a new state from the agent
+        // Otherwise, get the state with the highest probability from the agent
+        let grid_state = if explore {
+            model.agent.get_new_state()
+        } else {
+            model.agent.get_best_state()
+        };
+
+        // Reset grid
+        model.grid = Grid::new(w as f32, h as f32, &grid_state);
     } else {
-        if model.grid.population == model.last_population {
-            model.population_repeat += 1;
-        } else {
-            model.population_repeat = 0;
-        }
-
+        // Update the grid and increase the population age
         model.grid.population_age += 1;
         model.grid.update();
     }
-
-    model.last_population = model.grid.population;
-    model.last_population_percentage = model.population_percentage;
 }
 
 fn view(app: &App, model: &Model, frame: Frame) {
@@ -111,19 +129,11 @@ fn view(app: &App, model: &Model, frame: Frame) {
     // Set the background to black
     draw.background().color(BLACK);
 
-    for (i, cell) in model.grid.cells.iter().enumerate() {
+    for (_, cell) in model.grid.cells.iter().enumerate() {
         // Determine the cell color based on its state
         let cell_color = if cell.state { WHITE } else { BLACK };
+        let stroke_color = if cell.state { BLACK } else { WHITE };
     
-        // Get the probability for this cell from the agent
-        let probability = model.agent.probabilities[i];
-    
-        // Map the probability to a hue in the HSV color space
-        // Here, we're mapping [0, 1] to [0, 360] degrees of hue
-        //let hue = probability * 360.0;
-        let stroke_color = nannou::color::hsv(180.0, probability, 1.0); // Full saturation and value for vibrant colors
-    
-        // Draw the cell with a color border based on probability
         draw.rect()
             .xy(cell.pos)
             .w_h(model.grid.cell_width, model.grid.cell_height)
@@ -134,6 +144,15 @@ fn view(app: &App, model: &Model, frame: Frame) {
 
     // Write to the window frame.
     draw.to_frame(app, &frame).unwrap();
+}
+
+fn get_num_cells(window_width: f32, window_height: f32) -> usize {
+    let cell_width = constants::SCALE * window_width;
+    let cell_height = constants::SCALE * window_height;
+    let cols = f32::floor(window_width / cell_width) as usize;
+    let rows = f32::floor(window_height / cell_height) as usize;
+
+    cols * rows
 }
 
 fn main() {

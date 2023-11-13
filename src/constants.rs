@@ -1,5 +1,9 @@
 pub const WINDOW_WIDTH_MAX: f32 = 800.0;
 pub const WINDOW_HEIGHT_MAX: f32 = 800.0;
-pub const SCALE: f32 = 0.025;
-pub const EPSILON: f32 = 0.25;
-pub const MAX_POPULATION_AGE_REPEAT: usize = 200;
+pub const SCALE: f32 = 0.03;
+pub const EPSILON: f32 = 0.31;
+pub const MAX_POPULATION_REPEATS: usize = 50;
+pub const MAX_POPULATION_AGE: usize = 1000;
+pub const INITIAL_LIFE_RATIO: f32 = 0.3;
+pub const INITIAL_PROBABILITY: f32 = 0.5;
+pub const MAX_STATE_SPACE_SIZE: usize = 1000;

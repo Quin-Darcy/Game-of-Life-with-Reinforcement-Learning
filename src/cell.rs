@@ -5,5 +5,4 @@ use nannou::prelude::*;
 pub struct Cell {
     pub pos: Point2,
     pub state: bool,
-    pub age: usize,
 }

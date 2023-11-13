@@ -1,8 +1,7 @@
-use rand::Rng;
 use nannou::prelude::*;
+use bitvec::prelude::*;
 
 use crate::cell::Cell;
-use crate::agent::Agent;
 use crate::constants::SCALE;
 
 pub struct Grid {
@@ -11,12 +10,21 @@ pub struct Grid {
     pub rows: usize,
     pub cell_width: f32,
     pub cell_height: f32,
+    pub num_cells: usize,
     pub population: usize,
     pub population_age: usize,
+
+    // Store the initializing bit vector for the grid
+    pub grid_state: BitVec,
+
+    // Track the initial and final population of the grid
+    pub initial_population: usize,
+    pub final_population: usize,
 }
 
 impl Grid {
-    pub fn new(window_width: f32, window_height: f32, agent: &Agent) -> Self {
+    pub fn new(window_width: f32, window_height: f32, grid_state: &BitVec) -> Self {
+        // Calculate grid dimensions
         let cell_width = SCALE * window_width;
         let cell_height = SCALE * window_height;
         let cols = f32::floor(window_width / cell_width) as usize;
@@ -24,45 +32,51 @@ impl Grid {
         let x_padding = (window_width - (cols as f32 * cell_width)) / 2.0;
         let y_padding = (window_height - (rows as f32 * cell_height)) / 2.0;
 
+        // Initialize grid
         let num_cells = cols * rows;
+        let mut cells = Vec::with_capacity(num_cells);
         let mut population = 0;
         let population_age = 0;
-        
-        let mut rng = rand::thread_rng();
-        let mut cells = Vec::with_capacity(num_cells);
 
-        // Set positions for cells
+        // Set positions for cells based on the dimensions of the grid and the values in the grid_state
         for y in 0..rows {
             for x in 0..cols {
                 let x_pos = x_padding + x as f32 * cell_width - window_width / 2.0 + cell_width / 2.0;
                 let y_pos = y_padding+ y as f32 * cell_height - window_height / 2.0 + cell_height / 2.0;
                 let pos = pt2(x_pos, y_pos);
-
                 let idx = y * cols + x;
-                let state: bool;
 
-                if rng.gen::<f32>() < agent.epsilon {
-                    // Exploration: Choose state randomly
-                    state = rng.gen::<f32>() < 0.5;
-                } else {
-                    // Exploitation: Use the learned probability
-                    let probability = agent.probabilities[idx];
-                    state = rng.gen::<f32>() < probability;
-                }
+                let state = grid_state[idx];
 
-                let age = 0;
                 if state {
                     population += 1;
                 }
-                cells.push(Cell { pos, state, age });
+
+                cells.push(Cell { pos, state });
             }
         }
 
-        Grid { cells, columns: cols, rows, cell_width, cell_height, population, population_age}
+        Grid { 
+            cells, 
+            columns: cols, 
+            rows, 
+            cell_width, 
+            cell_height, 
+            num_cells, 
+            population, 
+            population_age, 
+            grid_state: grid_state.clone(), 
+            initial_population: population, 
+            final_population: 0 
+        }
     }
 
+    // This is solely the logic for the Game of Life 
     pub fn update(&mut self) {
-        let mut new_states = vec![false; self.cells.len()];
+        // This population has lived to see another day!
+        self.population_age += 1;
+
+        let mut new_states = vec![false; self.num_cells];
 
         for y in 0..self.rows {
             for x in 0..self.columns {
@@ -85,10 +99,6 @@ impl Grid {
             } else if !state && cell.state {
                 self.population -= 1;
             }
-
-            if state {
-                cell.age += 1;
-            } 
 
             cell.state = state;
         }
