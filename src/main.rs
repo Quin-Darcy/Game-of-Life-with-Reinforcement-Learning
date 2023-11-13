@@ -84,9 +84,6 @@ fn update(app: &App, model: &mut Model, _update: Update) {
         model.population_repeats = 0;
     }
 
-    // Print the size of the Agent's state space
-    println!("State space size: {}", model.agent.state_space.len());
-
     // Trigger new grid if population is zero or if the population size continues to repeat or if the population age is too high
     if model.grid.population == 0 || model.population_repeats >= MAX_POPULATION_REPEATS || model.grid.population_age >= MAX_POPULATION_AGE{
         let new_rect = app.window_rect();

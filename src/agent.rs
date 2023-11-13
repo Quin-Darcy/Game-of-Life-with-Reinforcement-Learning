@@ -4,12 +4,13 @@ use rand::Rng;
 use bitvec::prelude::*;
 
 use crate::grid::Grid;
-use crate::constants::{INITIAL_LIFE_RATIO, INITIAL_PROBABILITY, MAX_POPULATION_AGE, MAX_STATE_SPACE_SIZE};
+use crate::constants::{INITIAL_LIFE_RATIO, INITIAL_PROBABILITY, MAX_POPULATION_AGE, MAX_STATE_SPACE_SIZE, MAX_EPSILON, MIN_EPSILON, INCREASE_FACTOR, DECREASE_FACTOR};
 
 pub struct Agent {
     pub state_space: HashMap<BitVec, f32>,
     pub epsilon: f32,
     pub num_cells: usize,
+    previous_avg_value: f32,
 }
 
 impl Agent {
@@ -17,7 +18,8 @@ impl Agent {
         Agent { 
             state_space: HashMap::new(), 
             epsilon, 
-            num_cells 
+            num_cells,
+            previous_avg_value: 0.0,
         }
     }
 
@@ -43,6 +45,12 @@ impl Agent {
         if self.state_space.len() > MAX_STATE_SPACE_SIZE {
             self.prune();
         }
+
+        // Update epsilon
+        self.update_epsilon();
+
+        // Print the current epsilon value
+        println!("Epsilon: {}", self.epsilon);
     }
 
     pub fn get_best_state(&mut self) -> BitVec {
@@ -92,6 +100,35 @@ impl Agent {
             }
             // If the state is already in the state space, loop again to generate a new state
         }
+    }
+
+    pub fn update_epsilon(&mut self) {
+        let current_avg_value = self.get_average_state_value();
+        let rate_of_change = current_avg_value - self.previous_avg_value;
+
+        if rate_of_change > 0.0 {
+            // The average value is increasing: reduce epsilon
+            self.epsilon *= 1.0 - (rate_of_change * DECREASE_FACTOR);
+        } else {
+            // The average value is stagnant or decreasing: increase epsilon
+            self.epsilon += INCREASE_FACTOR * -rate_of_change; 
+        }
+
+        // Clamp epsilon between a minimum and maximum value
+        self.epsilon = self.epsilon.clamp(MIN_EPSILON, MAX_EPSILON);
+
+        // Update previous average value
+        self.previous_avg_value = current_avg_value;
+    }
+
+    fn get_average_state_value(&self) -> f32 {
+        let mut total_probability = 0.0;
+
+        for (_, probability) in &self.state_space {
+            total_probability += *probability;
+        }
+
+        total_probability / self.state_space.len() as f32
     }
 
     // Remove the state with the lowest probability from the state space 

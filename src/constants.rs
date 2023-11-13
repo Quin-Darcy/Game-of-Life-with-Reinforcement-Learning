@@ -7,3 +7,7 @@ pub const MAX_POPULATION_AGE: usize = 1000;
 pub const INITIAL_LIFE_RATIO: f32 = 0.3;
 pub const INITIAL_PROBABILITY: f32 = 0.5;
 pub const MAX_STATE_SPACE_SIZE: usize = 1000;
+pub const MAX_EPSILON : f32 = 0.7;
+pub const MIN_EPSILON : f32 = 0.1;
+pub const INCREASE_FACTOR : f32 = 0.07;
+pub const DECREASE_FACTOR : f32 = 0.025;
