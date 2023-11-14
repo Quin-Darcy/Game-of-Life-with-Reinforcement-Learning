@@ -10,7 +10,7 @@ pub struct Agent {
     pub state_space: HashMap<BitVec, f32>,
     pub epsilon: f32,
     pub num_cells: usize,
-    previous_avg_value: f32,
+    pub previous_avg_value: f32,
 }
 
 impl Agent {
@@ -48,9 +48,6 @@ impl Agent {
 
         // Update epsilon
         self.update_epsilon();
-
-        // Print the current epsilon value
-        println!("Epsilon: {}", self.epsilon);
     }
 
     pub fn get_best_state(&mut self) -> BitVec {

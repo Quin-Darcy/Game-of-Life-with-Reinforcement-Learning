@@ -19,6 +19,9 @@ struct Model {
     // To track the number of times the population size has repeated
     last_population: usize,
     population_repeats: usize,
+
+    // Counter to track the total number of iterations
+    iterations: usize,
 }
 
 fn model(app: &App) -> Model {
@@ -38,7 +41,7 @@ fn model(app: &App) -> Model {
         .build()
         .unwrap();
 
-    Model { grid, agent, last_population: 0, population_repeats: 0 }
+    Model { grid, agent, last_population: 0, population_repeats: 0, iterations: 0 }
 }
 
 // TODO: Implement centralized reset function which can be called from window_event
@@ -56,6 +59,9 @@ fn window_event(app: &App, model: &mut Model, event: WindowEvent) {
             // Reset the grid and initialize it to a new state from the agent
             let grid_state = model.agent.get_new_state();
 
+            // Reset the number of iterations
+            model.iterations = 0;
+
             model.grid = Grid::new(w as f32, h as f32, &grid_state);
         }
         WindowEvent::MousePressed(_button) => {
@@ -69,6 +75,9 @@ fn window_event(app: &App, model: &mut Model, event: WindowEvent) {
             // Reset the grid and initialize it to a new state from the agent
             let grid_state = model.agent.get_new_state();
 
+            // Reset the number of iterations
+            model.iterations = 0;
+
             model.grid = Grid::new(w as f32, h as f32, &grid_state);
         }
         _ => {}
@@ -76,6 +85,20 @@ fn window_event(app: &App, model: &mut Model, event: WindowEvent) {
 }
 
 fn update(app: &App, model: &mut Model, _update: Update) {
+    // Increment the number of iterations
+    model.iterations += 1;
+
+    // Print data about the model and agent every 1000 iterations
+    if model.iterations % 1000 == 0 {
+        println!("Iterations: {}", model.iterations);
+        println!("Population: {}", model.grid.population);
+        println!("Population Age: {}", model.grid.population_age);
+        println!("Epsilon: {}", model.agent.epsilon);
+        println!("State Space Size: {}", model.agent.state_space.len());
+        println!("Average Value: {}", model.agent.previous_avg_value);
+        println!("-------------------------");
+    }
+
     // Check if the population size has repeated
     if model.grid.population == model.last_population {
         model.population_repeats += 1;
