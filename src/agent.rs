@@ -4,22 +4,41 @@ use rand::Rng;
 use bitvec::prelude::*;
 
 use crate::grid::Grid;
-use crate::constants::{INITIAL_LIFE_RATIO, INITIAL_PROBABILITY, MAX_POPULATION_AGE, MAX_STATE_SPACE_SIZE, MAX_EPSILON, MIN_EPSILON, INCREASE_FACTOR, DECREASE_FACTOR};
+use crate::ga::GA;
+use crate::constants::{
+    INITIAL_LIFE_RATIO, 
+    INITIAL_PROBABILITY, 
+    MAX_POPULATION_AGE, 
+    MAX_STATE_SPACE_SIZE, 
+    MAX_EPSILON, 
+    MIN_EPSILON, 
+    INCREASE_FACTOR, 
+    DECREASE_FACTOR,
+    TOURNAMENT_WINNERS_PERCENTAGE,
+    TOURNAMENT_SIZE,
+    SELECTION_PRESSURE,
+    MUTATION_RATE,
+    CROSSOVER_RATE,
+};
 
 pub struct Agent {
     pub state_space: HashMap<BitVec, f32>,
     pub epsilon: f32,
     pub num_cells: usize,
     pub previous_avg_value: f32,
+    pub ga: GA,
 }
 
 impl Agent {
     pub fn new(epsilon: f32, num_cells: usize) -> Self {
+        let ga = GA::new(TOURNAMENT_WINNERS_PERCENTAGE, TOURNAMENT_SIZE, SELECTION_PRESSURE, MUTATION_RATE, CROSSOVER_RATE);
+
         Agent { 
             state_space: HashMap::new(), 
             epsilon, 
             num_cells,
             previous_avg_value: 0.0,
+            ga,
         }
     }
 
@@ -142,4 +161,7 @@ impl Agent {
 
         self.state_space.remove(&lowest_probability_state.expect("Expected a lowest probability state but found none"));
     }
+
+    // TODO: Write method which calls the GA to evolve the state space
+    // TODO: Write method which can computationally run all new states returned by the GA, evaluates them, then adds them to the state space
 }

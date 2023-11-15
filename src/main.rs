@@ -5,6 +5,7 @@ use nannou::prelude::*;
 mod grid;
 mod cell;
 mod agent;
+mod ga;
 mod constants;
 
 use crate::grid::Grid;
@@ -130,6 +131,19 @@ fn update(app: &App, model: &mut Model, _update: Update) {
         let grid_state = if explore {
             model.agent.get_new_state()
         } else {
+            // This is where we need to call the Agent to use its GA to get a set of new states 
+            // Each of the states first need to be evaluated by the Grid and then the best state needs to be returned
+            /*
+                We need to call the Agent and ask it to evolve its population
+                Then the agent will return a set of unevaluated states
+                We need to process (evaluate) each of these states and place them in the Agent's state_space
+                We should not need to display the grid for each of these states during their runs
+                During each of these runs, we need to employ the same logic to prevent the population from repeating
+                or the population age from getting too high or the population from dying out
+                The Agent also needs to update after each of these runs
+                So this segment should represent and evolve, then evaluate, then update loop
+            
+             */
             model.agent.get_best_state()
         };
 

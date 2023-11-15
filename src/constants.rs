@@ -18,3 +18,10 @@ pub const MAX_EPSILON : f32 = 0.7;
 pub const MIN_EPSILON : f32 = 0.1;
 pub const INCREASE_FACTOR : f32 = 0.07;
 pub const DECREASE_FACTOR : f32 = 0.025;
+
+// Constants for the GA
+pub const TOURNAMENT_WINNERS_PERCENTAGE: f32 = 0.6;
+pub const TOURNAMENT_SIZE: f32 = 0.2;
+pub const SELECTION_PRESSURE: f32 = 0.8;
+pub const MUTATION_RATE: f32 = 0.1;
+pub const CROSSOVER_RATE: f32 = 0.5;
