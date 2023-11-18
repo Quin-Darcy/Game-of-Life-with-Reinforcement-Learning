@@ -15,7 +15,6 @@ use crate::constants::{
     INCREASE_FACTOR, 
     DECREASE_FACTOR,
     TOURNAMENT_WINNERS_PERCENTAGE,
-    TOURNAMENT_SIZE,
     SELECTION_PRESSURE,
     MUTATION_RATE,
     CROSSOVER_RATE,
@@ -31,7 +30,8 @@ pub struct Agent {
 
 impl Agent {
     pub fn new(epsilon: f32, num_cells: usize) -> Self {
-        let ga = GA::new(TOURNAMENT_WINNERS_PERCENTAGE, TOURNAMENT_SIZE, SELECTION_PRESSURE, MUTATION_RATE, CROSSOVER_RATE);
+        // Initialize the GA
+        let ga = GA::new(TOURNAMENT_WINNERS_PERCENTAGE, SELECTION_PRESSURE, MUTATION_RATE, CROSSOVER_RATE);
 
         Agent { 
             state_space: HashMap::new(), 
