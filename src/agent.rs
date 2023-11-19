@@ -9,6 +9,7 @@ use crate::constants::{
     INITIAL_LIFE_RATIO, 
     INITIAL_PROBABILITY, 
     MAX_POPULATION_AGE, 
+    MAX_POPULATION_REPEATS,
     MAX_STATE_SPACE_SIZE, 
     MAX_EPSILON, 
     MIN_EPSILON, 
@@ -42,31 +43,90 @@ impl Agent {
         }
     }
 
-    pub fn update(&mut self, grid: &Grid) {
-        let grid_state = grid.grid_state.clone();
+    pub fn update(&mut self, w: usize, h: usize) {
+        // Clone the keys to avoid borrow conflict
+        let keys: Vec<BitVec> = self.state_space.keys().cloned().collect();
+    
+        // Iterate over the cloned keys
+        for grid_state in keys {
+            // Only update states with a probability of 0
+            if let Some(&probability) = self.state_space.get(&grid_state) {
+                if probability == 0.0 {
+                    let state_probability = self.run_state(w, h, &grid_state);
+                    self.state_space.insert(grid_state, state_probability);
+                }
+            }
+        }
+    
+        // Prune the state space if it exceeds the maximum size
+        if self.state_space.len() > MAX_STATE_SPACE_SIZE {
+            self.prune();
+        }
+    
+        // Update epsilon
+        self.update_epsilon();
+    }
+    
 
-        // Get the current state probability from the state space
-        let current_state_probability = self.state_space.get_mut(&grid_state).unwrap();
+    pub fn explore(&mut self) {
+        // Generate a new state and add it to the state space
+        let new_state = self.get_new_state();
+        self.state_space.insert(new_state.clone(), INITIAL_PROBABILITY);
+    }
 
-        // Calculate the difference between the initial and final population and normalize it with num_cells
+    pub fn exploit(&mut self) {
+        // We will pass state_space over to our GA to evolve it and it will return a vector of new states
+        // which we will then have to run and evaluate
+        let new_states = match self.ga.evolve(&self.state_space) {
+            Some(states) => states,
+            None => {
+                println!("GA failed to evolve the state space");
+                return;
+            }
+        };
+
+        // Add each state to the state space with INITIAL_PROBABILITY
+        for state in new_states {
+            self.state_space.insert(state, INITIAL_PROBABILITY);
+        }
+    }
+
+    fn run_state(&self, w: usize, h: usize, state: &BitVec) -> f32 {
+        let mut grid = Grid::new(w as f32, h as f32, state);
+        let mut iterations = 0;
+        let mut population_repeats = 0;
+        let mut last_population = grid.population;
+
+        while grid.population > 0 && iterations < MAX_POPULATION_AGE && population_repeats < MAX_POPULATION_REPEATS {
+            grid.update();
+            iterations += 1;
+
+            // Check if the population size has repeated
+            if grid.population == last_population {
+                population_repeats += 1;
+            } else {
+                last_population = grid.population;
+                population_repeats = 0;
+            }
+        }
+
+        // Evaluate the state based on the final population size
         let population_difference = (grid.final_population as f32 - grid.initial_population as f32) / self.num_cells as f32;
 
         // Get the grid's population age and normalize it with MAX_POPULATION_AGE
         let population_age = grid.population_age as f32 / MAX_POPULATION_AGE as f32;
 
-        // Update the current state probability based on the population difference and population age
-        *current_state_probability += population_difference * population_age;
+        // Calculate a scaled difference using an exponential function
+        // This will ensure that positive differences are amplified and negative differences are diminished
+        let scaled_difference = 1.0 / (1.0 + f32::exp(-population_difference));
 
-        // Clamp the current state probability between 0.0 and 1.0
-        *current_state_probability = current_state_probability.max(0.0).min(1.0);
+        // Set the state's probability based on the population difference and population age
+        let mut state_probability = scaled_difference * population_age;
 
-        // Prune the state space if it exceeds the maximum size
-        if self.state_space.len() > MAX_STATE_SPACE_SIZE {
-            self.prune();
-        }
-
-        // Update epsilon
-        self.update_epsilon();
+        // Clamp the state probability between 0.0 and 1.0
+        state_probability = state_probability.max(0.0).min(1.0);
+        
+        state_probability
     }
 
     pub fn get_best_state(&mut self) -> BitVec {
@@ -141,27 +201,30 @@ impl Agent {
         let mut total_probability = 0.0;
 
         for (_, probability) in &self.state_space {
+            // Check if the probability is NaN
+            if probability.is_nan() {
+                continue;
+            }
             total_probability += *probability;
         }
 
         total_probability / self.state_space.len() as f32
     }
 
-    // Remove the state with the lowest probability from the state space 
+    // Remove the states with the lowest probability from the state space until it is below the maximum size
     fn prune(&mut self) {
-        let mut lowest_probability = f32::MAX;
-        let mut lowest_probability_state = None;
+        while self.state_space.len() > MAX_STATE_SPACE_SIZE {
+            let mut lowest_probability = f32::MAX;
+            let mut lowest_probability_state = None;
 
-        for (state, probability) in &self.state_space {
-            if *probability < lowest_probability {
-                lowest_probability = *probability;
-                lowest_probability_state = Some(state.clone());
+            for (state, probability) in &self.state_space {
+                if *probability < lowest_probability {
+                    lowest_probability = *probability;
+                    lowest_probability_state = Some(state.clone());
+                }
             }
+
+            self.state_space.remove(&lowest_probability_state.expect("Expected a lowest probability state but found none"));
         }
-
-        self.state_space.remove(&lowest_probability_state.expect("Expected a lowest probability state but found none"));
     }
-
-    // TODO: Write method which calls the GA to evolve the state space
-    // TODO: Write method which can computationally run all new states returned by the GA, evaluates them, then adds them to the state space
 }
