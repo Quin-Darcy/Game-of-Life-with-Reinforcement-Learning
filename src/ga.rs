@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use rand::prelude::*;
 use bitvec::prelude::*;
 
+use crate::constants::{MAX_CROSSOVER_POINTS, MAX_CROSSOVER_SECTION_SIZE};
 
 pub struct GA {
     tournament_winners_percentage: f32,
@@ -114,11 +115,67 @@ impl GA {
         let num_states = tournament_winners.len();
         let mut new_states: Vec<BitVec> = Vec::with_capacity(tournament_winners.len());
 
-        for i in 0..num_states {
+        let grid_size = tournament_winners.keys().nth(0).unwrap().len();
+        let grid_side_length = (grid_size as f32).sqrt() as usize;
 
+        for i in 0..num_states {
+            let parent_state = tournament_winners.keys().nth(i).unwrap();
+
+            let state = if rng.gen::<f32>() > self.crossover_rate {
+                // If the crossover rate is less than the random number, then the state will stay as it is
+                parent_state.clone()
+            } else {
+                // Here we will perform crossover between the current state and another state
+                // We will choose the other state randomly and confirm that it is not the same as the current state
+                let other_state_index = (0..num_states).filter(|&x| x != i).choose(&mut rng).unwrap();
+                let other_state = tournament_winners.keys().nth(other_state_index).unwrap();
+
+                // Clone the parent state to start with 
+                let mut new_state = parent_state.clone();
+
+                // We begin by selecting a random percentage between 1 and MAX_CROSSOVER_POINTS
+                // This percentage will be used to determine the number of crossover points
+                let percentage = rng.gen_range(1.0..MAX_CROSSOVER_POINTS);
+
+                // We then calculate the number of crossover points based on the percentage
+                let num_crossover_points = (percentage * grid_size as f32).ceil() as usize;
+
+                // Next, we calculate the dimensions of each crossover section
+                // This is equal to the side length of the grid multiplied by a random percentage between 0 and MAX_CROSSOVER_SECTION_SIZE
+                // We can get the grid side length by taking the square root of the length of one of the state
+                let crossover_size_percentage = rng.gen_range(0.0..MAX_CROSSOVER_SECTION_SIZE);
+                let crossover_side_length = (grid_side_length as f32 * crossover_size_percentage).ceil() as usize;
+
+                // Next, we will iterate through each crossover point and perform crossover
+                // This will require us to construct each rectangular crossover section based on the crossover size length
+                // the crossover point, and its distance from the edges of the grid
+                // and we will contruct the new state as a composite of the crossover sections
+                for _ in 0..num_crossover_points {
+                    // Determine the crossover point
+                    let point_x = rng.gen_range(0..grid_side_length);
+                    let point_y = rng.gen_range(0..grid_side_length);
+
+                    // Calculate the maximum possible size of the crossover section
+                    let max_section_size = grid_side_length - point_x.max(point_y);
+                    let crossover_size = rng.gen_range(1..=max_section_size.min(crossover_side_length));
+
+                    // Perform crossover in the square region around the point
+                    for x in point_x ..(point_x + crossover_size).min(grid_side_length) {
+                        for y in point_y ..(point_y + crossover_size).min(grid_side_length) {
+                            let index = x * grid_side_length + y;
+                            new_state.set(index, other_state[index]);
+                        }
+                    }
+
+                }
+
+                new_state
+            };
+
+            new_states.push(state);
         }
 
-        todo!()
+        new_states
     }
 
     fn mutate(&self, new_states: &mut Vec<BitVec>) {

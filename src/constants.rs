@@ -24,3 +24,5 @@ pub const TOURNAMENT_WINNERS_PERCENTAGE: f32 = 0.6;
 pub const SELECTION_PRESSURE: f32 = 0.8;
 pub const MUTATION_RATE: f32 = 0.1;
 pub const CROSSOVER_RATE: f32 = 0.5;
+pub const MAX_CROSSOVER_POINTS: f32 = 0.5;
+pub const MAX_CROSSOVER_SECTION_SIZE: f32 = 0.2;
