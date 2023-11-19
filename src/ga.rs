@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use rand::prelude::*;
 use bitvec::prelude::*;
 
-use crate::constants::{MAX_CROSSOVER_POINTS, MAX_CROSSOVER_SECTION_SIZE};
+use crate::constants::{MAX_CROSSOVER_POINTS, MAX_CROSSOVER_SECTION_SIZE, MAX_MUTATION_POINTS};
 
 pub struct GA {
     tournament_winners_percentage: f32,
@@ -147,7 +147,7 @@ impl GA {
                 let crossover_side_length = (grid_side_length as f32 * crossover_size_percentage).ceil() as usize;
 
                 // Next, we will iterate through each crossover point and perform crossover
-                // This will require us to construct each rectangular crossover section based on the crossover size length
+                // This will require us to construct each rectangular crossover section based on the crossover_side_length,
                 // the crossover point, and its distance from the edges of the grid
                 // and we will contruct the new state as a composite of the crossover sections
                 for _ in 0..num_crossover_points {
@@ -155,14 +155,16 @@ impl GA {
                     let point_x = rng.gen_range(0..grid_side_length);
                     let point_y = rng.gen_range(0..grid_side_length);
 
-                    // Calculate the maximum possible size of the crossover section
+                    // Calculate the maximum possible crossover section side length - this will be the minimum of the distance from the point to the edges of the grid
                     let max_section_size = grid_side_length - point_x.max(point_y);
+
+                    // Calculate the actual crossover section side length - this will be the minimum of the maximum possible crossover section side length and the crossover side length
                     let crossover_size = rng.gen_range(1..=max_section_size.min(crossover_side_length));
 
                     // Perform crossover in the square region around the point
-                    for x in point_x ..(point_x + crossover_size).min(grid_side_length) {
-                        for y in point_y ..(point_y + crossover_size).min(grid_side_length) {
-                            let index = x * grid_side_length + y;
+                    for y in point_y ..(point_y + crossover_size).min(grid_side_length) {
+                        for x in point_x ..(point_x + crossover_size).min(grid_side_length) {
+                            let index = y * grid_side_length + x;
                             new_state.set(index, other_state[index]);
                         }
                     }
@@ -179,8 +181,28 @@ impl GA {
     }
 
     fn mutate(&self, new_states: &mut Vec<BitVec>) {
-        // Perform mutation at a rate equal to mutation_rate on the new states
-        // Returns Vec<BitVec> since these are new states which haven't been evaluated yet
-        todo!()
+        let mut rng = thread_rng();
+        let num_states = new_states.len();
+        let state_size = new_states[0].len();
+
+        for i in 0..num_states {
+            // Decide whether or not to mutate the state
+            if rng.gen::<f32>() > self.mutation_rate {
+                continue;
+            } else {
+                // Calculate the number of mutation points
+                let percentage = rng.gen_range(0.0..MAX_MUTATION_POINTS);
+                let num_mutation_points = (percentage * state_size as f32).ceil() as usize;
+
+                // Mutate the state at the mutation points
+                for _ in 0..num_mutation_points {
+                    let index = rng.gen_range(0..state_size);
+                    let bit = new_states[i][index];
+                    if let Some(bitvec) = new_states.get_mut(i) {
+                        bitvec.set(index, !bit);
+                    }
+                }
+            }
+        }
     }
 }

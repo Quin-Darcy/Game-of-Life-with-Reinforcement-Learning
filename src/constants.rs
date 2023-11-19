@@ -26,3 +26,4 @@ pub const MUTATION_RATE: f32 = 0.1;
 pub const CROSSOVER_RATE: f32 = 0.5;
 pub const MAX_CROSSOVER_POINTS: f32 = 0.5;
 pub const MAX_CROSSOVER_SECTION_SIZE: f32 = 0.2;
+pub const MAX_MUTATION_POINTS: f32 = 0.5;
