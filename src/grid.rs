@@ -13,6 +13,9 @@ pub struct Grid {
     pub num_cells: usize,
     pub population: usize,
     pub population_age: usize,
+    pub population_mean: f32,
+    pub sum_sq_diff: f32,
+    pub standard_deviation: f32,
 
     // Store the initializing bit vector for the grid
     pub grid_state: BitVec,
@@ -65,6 +68,9 @@ impl Grid {
             num_cells, 
             population, 
             population_age, 
+            population_mean: 0.0,
+            sum_sq_diff: 0.0,
+            standard_deviation: 0.0,
             grid_state: grid_state.clone(), 
             initial_population: population, 
             final_population: 0 
@@ -102,6 +108,20 @@ impl Grid {
 
             cell.state = state;
         }
+
+        // Calulate standard deviation
+        let delta = self.population as f32 - self.population_mean;
+        self.population_mean += delta / self.population_age as f32;
+        let delta2 = self.population as f32 - self.population_mean;
+        self.sum_sq_diff += delta * delta2;
+
+        if self.population_age > 1 {
+            self.standard_deviation = (self.sum_sq_diff / (self.population_age - 1) as f32).sqrt();
+        } else {
+            self.standard_deviation = 0.0;
+        }
+
+        self.final_population = self.population;
     }
 
     fn count_live_neighbors(&self, x: usize, y: usize) -> usize {

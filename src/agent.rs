@@ -112,6 +112,7 @@ impl Agent {
 
         // Evaluate the state based on the final population size
         let population_difference = (grid.final_population as f32 - grid.initial_population as f32) / self.num_cells as f32;
+        let population_size = grid.final_population as f32 / self.num_cells as f32;
 
         // Get the grid's population age and normalize it with MAX_POPULATION_AGE
         let population_age = grid.population_age as f32 / MAX_POPULATION_AGE as f32;
@@ -120,8 +121,10 @@ impl Agent {
         // This will ensure that positive differences are amplified and negative differences are diminished
         let scaled_difference = 1.0 / (1.0 + f32::exp(-population_difference));
 
+        let standard_deviation = grid.standard_deviation / self.num_cells as f32;
+
         // Set the state's probability based on the population difference and population age
-        let mut state_probability = scaled_difference * population_age;
+        let mut state_probability = scaled_difference * population_age * standard_deviation;
 
         // Clamp the state probability between 0.0 and 1.0
         state_probability = state_probability.max(0.0).min(1.0);

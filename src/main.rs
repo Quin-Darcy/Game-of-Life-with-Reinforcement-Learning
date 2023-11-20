@@ -115,9 +115,6 @@ fn update(app: &App, model: &mut Model, _update: Update) {
         // Reset population repeat counter
         model.population_repeats = 0;
 
-        // Set the final population size of the grid
-        model.grid.final_population = model.grid.population;
-
         // Decide if the agent should explore or exploit
         let mut rng = rand::thread_rng();
         let explore = (rng.gen::<f32>() < model.agent.epsilon) || (model.agent.state_space.len() < 5);
