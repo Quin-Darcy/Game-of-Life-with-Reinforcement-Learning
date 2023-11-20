@@ -2,7 +2,7 @@ use nannou::prelude::*;
 use bitvec::prelude::*;
 
 use crate::cell::Cell;
-use crate::constants::SCALE;
+use crate::constants::{SCALE, MAX_CYCLE_LENGTH};
 
 pub struct Grid {
     pub cells: Vec<Cell>,
@@ -16,6 +16,9 @@ pub struct Grid {
     pub population_mean: f32,
     pub sum_sq_diff: f32,
     pub standard_deviation: f32,
+
+    pub cycle_sum: usize,
+    pub cycle_average: f32,
 
     // Store the initializing bit vector for the grid
     pub grid_state: BitVec,
@@ -69,6 +72,8 @@ impl Grid {
             population, 
             population_age, 
             population_mean: 0.0,
+            cycle_average: 0.0,
+            cycle_sum: 0,
             sum_sq_diff: 0.0,
             standard_deviation: 0.0,
             grid_state: grid_state.clone(), 
@@ -83,6 +88,15 @@ impl Grid {
         self.population_age += 1;
 
         let mut new_states = vec![false; self.num_cells];
+
+        // Calculate the average population size over the last MAX_CYCLE_LENGTH cycles
+        // This tracks if the population is repeating in a cycle
+        if self.population_age % MAX_CYCLE_LENGTH == 0 {
+            self.cycle_average = self.cycle_sum as f32 / MAX_CYCLE_LENGTH as f32;
+            self.cycle_sum = 0;
+        } else {
+            self.cycle_sum += self.population;
+        }
 
         for y in 0..self.rows {
             for x in 0..self.columns {

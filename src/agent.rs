@@ -94,25 +94,24 @@ impl Agent {
     fn run_state(&self, w: usize, h: usize, state: &BitVec) -> f32 {
         let mut grid = Grid::new(w as f32, h as f32, state);
         let mut iterations = 0;
-        let mut population_repeats = 0;
-        let mut last_population = grid.population;
+        let mut cycle_average_repeats = 0;
+        let mut last_cycle_avg = grid.cycle_average;
 
-        while grid.population > 0 && iterations < MAX_POPULATION_AGE && population_repeats < MAX_POPULATION_REPEATS {
+        while grid.population > 0 && iterations < MAX_POPULATION_AGE &&  cycle_average_repeats < MAX_POPULATION_REPEATS {
             grid.update();
             iterations += 1;
 
-            // Check if the population size has repeated
-            if grid.population == last_population {
-                population_repeats += 1;
+            // Check if the population size has repeated cyclically
+            if grid.cycle_average == last_cycle_avg {
+                cycle_average_repeats += 1;
             } else {
-                last_population = grid.population;
-                population_repeats = 0;
+                last_cycle_avg = grid.cycle_average;
+                cycle_average_repeats = 0;
             }
         }
 
         // Evaluate the state based on the final population size
         let population_difference = (grid.final_population as f32 - grid.initial_population as f32) / self.num_cells as f32;
-        let population_size = grid.final_population as f32 / self.num_cells as f32;
 
         // Get the grid's population age and normalize it with MAX_POPULATION_AGE
         let population_age = grid.population_age as f32 / MAX_POPULATION_AGE as f32;
@@ -121,6 +120,8 @@ impl Agent {
         // This will ensure that positive differences are amplified and negative differences are diminished
         let scaled_difference = 1.0 / (1.0 + f32::exp(-population_difference));
 
+        // Including the standard deviation in the state probability calculation will encourage the agent to explore
+        // states which have more dynamic populatation fluctuations
         let standard_deviation = grid.standard_deviation / self.num_cells as f32;
 
         // Set the state's probability based on the population difference and population age

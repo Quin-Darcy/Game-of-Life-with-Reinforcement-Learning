@@ -19,8 +19,9 @@ struct Model {
     grid: Grid,
 
     // To track the number of times the population size has repeated
-    last_population: usize,
     population_repeats: usize,
+    last_cycle_average: f32,
+    cycle_average_repeats: usize,
 
     // Counter to track the total number of iterations
     iterations: usize,
@@ -43,7 +44,7 @@ fn model(app: &App) -> Model {
         .build()
         .unwrap();
 
-    Model { grid, agent, last_population: 0, population_repeats: 0, iterations: 0 }
+    Model { grid, agent, population_repeats: 0, last_cycle_average: 0.0, cycle_average_repeats: 0, iterations: 0 }
 }
 
 // TODO: Implement centralized reset function which can be called from window_event
@@ -98,16 +99,16 @@ fn update(app: &App, model: &mut Model, _update: Update) {
         println!("-------------------------");
     }
 
-    // Check if the population size has repeated
-    if model.grid.population == model.last_population {
-        model.population_repeats += 1;
+    // Check if the population size has repeated cyclically
+    if model.grid.cycle_average == model.last_cycle_average {
+        model.cycle_average_repeats += 1;
     } else {
-        model.last_population = model.grid.population;
-        model.population_repeats = 0;
+        model.last_cycle_average = model.grid.cycle_average;
+        model.cycle_average_repeats = 0;
     }
 
     // Trigger new grid if population is zero or if the population size continues to repeat or if the population age is too high
-    if model.grid.population == 0 || model.population_repeats >= MAX_POPULATION_REPEATS || model.grid.population_age >= MAX_POPULATION_AGE{
+    if model.grid.population == 0 || model.cycle_average_repeats >= MAX_POPULATION_REPEATS || model.grid.population_age >= MAX_POPULATION_AGE{
         let new_rect = app.window_rect();
         let w = min(new_rect.w() as usize, WINDOW_WIDTH_MAX as usize);
         let h = min(new_rect.h() as usize, WINDOW_HEIGHT_MAX as usize);
