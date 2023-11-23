@@ -6,7 +6,7 @@ use bitvec::prelude::*;
 use crate::grid::Grid;
 use crate::ga::GA;
 use crate::constants::{
-    INITIAL_LIFE_RATIO, 
+    MAX_ALIVE_RATIO, 
     INITIAL_PROBABILITY, 
     MAX_POPULATION_AGE, 
     MAX_POPULATION_REPEATS,
@@ -26,6 +26,8 @@ pub struct Agent {
     pub epsilon: f32,
     pub num_cells: usize,
     pub previous_avg_value: f32,
+    pub max_value: f32,
+    pub max_state: BitVec,
     pub ga: GA,
 }
 
@@ -39,6 +41,8 @@ impl Agent {
             epsilon, 
             num_cells,
             previous_avg_value: 0.0,
+            max_value: 0.0,
+            max_state: bitvec![0; num_cells],
             ga,
         }
     }
@@ -91,7 +95,7 @@ impl Agent {
         }
     }
 
-    fn run_state(&self, w: usize, h: usize, state: &BitVec) -> f32 {
+    fn run_state(&mut self, w: usize, h: usize, state: &BitVec) -> f32 {
         let mut grid = Grid::new(w as f32, h as f32, state);
         let mut iterations = 0;
         let mut cycle_average_repeats = 0;
@@ -129,6 +133,11 @@ impl Agent {
 
         // Clamp the state probability between 0.0 and 1.0
         state_probability = state_probability.max(0.0).min(1.0);
+
+        // Update the max value if the state probability is greater than the current max value
+        if state_probability > self.max_value {
+            self.max_value = state_probability;
+        }
         
         state_probability
     }
@@ -151,12 +160,22 @@ impl Agent {
             }
         }
 
+        self.max_value = highest_probability;
+        self.max_state = best_state.clone().unwrap();
+
         best_state.expect("Expected a best state but found none")
     }
     
     pub fn get_new_state(&mut self) -> BitVec {
         let mut rng = rand::thread_rng();
-        let num_alive_cells = (self.num_cells as f32 * INITIAL_LIFE_RATIO).round() as usize;
+
+        let alive_percentage = if rng.gen::<f32>() < 0.3 {
+            rng.gen_range(0.01..=MAX_ALIVE_RATIO)
+        } else {
+            self.get_best_state_alive_ratio()
+        };
+
+        let num_alive_cells = (self.num_cells as f32 * alive_percentage).round() as usize;
 
         loop {
             // Initialize all cells to dead
@@ -199,6 +218,14 @@ impl Agent {
 
         // Update previous average value
         self.previous_avg_value = current_avg_value;
+    }
+
+    fn get_best_state_alive_ratio(&self) -> f32 {
+        if self.state_space.len() < 5 {
+            return MAX_ALIVE_RATIO;
+        }
+
+        return self.max_state.count_ones() as f32 / self.num_cells as f32;
     }
 
     fn get_average_state_value(&self) -> f32 {
